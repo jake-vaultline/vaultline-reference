@@ -6,14 +6,14 @@ private let logger = Logger(subsystem: "co.snapwell", category: "Keychain")
 
 enum KeychainService {
 
-    private static let serviceName = "co.snapwell.apikeys"
+    private static let serviceName = "com.vaultline.reference.apikeys"
 
     nonisolated(unsafe) private static var cache: [String: String]?
     private static let lock = NSLock()
 
     private static let legacyStorageURL: URL = {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("Snapwell", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("VaultlineReference", isDirectory: true)
         return dir.appendingPathComponent(".keys.json")
     }()
 

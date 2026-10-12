@@ -26,3 +26,6 @@ ios/build/
 .playwright-mcp/
 .screenshots/
 .vercel
+
+# Never track local credential fallbacks
+.keys.json

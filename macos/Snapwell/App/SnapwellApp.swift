@@ -15,7 +15,7 @@ struct SnapwellApp: App {
         NSWindow.allowsAutomaticWindowTabbing = false
 
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let snapwellDir = appSupport.appendingPathComponent("Snapwell", isDirectory: true)
+        let snapwellDir = appSupport.appendingPathComponent("VaultlineReference", isDirectory: true)
         try? FileManager.default.createDirectory(at: snapwellDir, withIntermediateDirectories: true)
         let storeURL = snapwellDir.appendingPathComponent("default.store")
 
@@ -51,12 +51,11 @@ struct SnapwellApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Snapwell") {
+        WindowGroup("Vaultline Reference") {
             ContentView()
                 .preferredColorScheme(appearanceColorScheme)
                 .task {
-                    KeySyncService.syncFromiCloud()
-                    KeySyncService.syncToiCloud()
+                    // Derivative keys remain local; upstream iCloud key sync is not enabled.
                 }
         }
         .modelContainer(container)

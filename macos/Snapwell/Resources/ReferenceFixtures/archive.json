@@ -1,0 +1,50 @@
+[
+  {
+    "id": "demo-coast-001",
+    "name": "Warm coast \u00b7 static wide",
+    "source": "Synthetic / Coast / warm-coast.mp4",
+    "thumbnail": "warm-coast",
+    "timecode": "00:00:00.000\u201300:00:03.000 \u00b7 24 fps \u00b7 fixture range",
+    "metadata": {
+      "subject": "coast ocean sun",
+      "setting": "beach coast",
+      "framing": "wide horizontal",
+      "lighting": "warm sunset illustration",
+      "color palette": "orange teal amber",
+      "camera movement": "static",
+      "mood": "quiet contemplative \u00b7 fixture author interpretation"
+    }
+  },
+  {
+    "id": "demo-city-002",
+    "name": "City silhouette \u00b7 cool palette",
+    "source": "Synthetic / City / blue-city.png",
+    "thumbnail": "blue-city",
+    "timecode": null,
+    "metadata": {
+      "subject": "city buildings skyline",
+      "setting": "city urban",
+      "framing": "wide horizontal",
+      "lighting": "blue twilight illustration",
+      "color palette": "blue gray",
+      "camera movement": "unknown",
+      "mood": "quiet urban \u00b7 fixture author interpretation"
+    }
+  },
+  {
+    "id": "demo-coast-003",
+    "name": "Day coast \u00b7 wide composition",
+    "source": "Synthetic / Coast / day-coast.png",
+    "thumbnail": "day-coast",
+    "timecode": null,
+    "metadata": {
+      "subject": "coast ocean sun",
+      "setting": "beach coast",
+      "framing": "wide horizontal",
+      "lighting": "daylight illustration",
+      "color palette": "blue teal yellow",
+      "camera movement": "unknown",
+      "mood": "open calm \u00b7 fixture author interpretation"
+    }
+  }
+]

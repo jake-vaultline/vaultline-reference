@@ -44,15 +44,9 @@ final class MediaStorageService: Sendable {
     }
 
     private convenience init() {
-        // Try to resolve the iCloud container; fall back to Application Support
         let fm = FileManager.default
-        if let containerURL = fm.url(forUbiquityContainerIdentifier: "iCloud.co.SnapWell") {
-            let docsURL = containerURL.appendingPathComponent("Documents", isDirectory: true)
-            self.init(baseURL: docsURL, isUsingiCloud: true)
-        } else {
-            let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            self.init(baseURL: appSupport.appendingPathComponent("Snapwell", isDirectory: true))
-        }
+        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        self.init(baseURL: appSupport.appendingPathComponent("VaultlineReference", isDirectory: true))
     }
 
     func saveMedia(data: Data, filename: String) throws -> URL {

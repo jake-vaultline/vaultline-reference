@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var pendingEditSpaceId: String?
     @State private var electronImportURL: URL?
     @State private var showImportPanel = false
+    @State private var showReferenceWorkspace = false
     @State private var indexRebuildTask: Task<Void, Never>?
     @State private var apiKeyNudgeTask: Task<Void, Never>?
     /// Pre-computed search scores keyed by item ID. Empty = no active search.
@@ -179,7 +180,11 @@ struct ContentView: View {
         .coordinateSpace(name: DetailCoordinateSpace.splitViewRoot)
         .navigationTitle(detailNavigationTitle)
         .searchable(text: $appState.searchText, isPresented: $isSearchFieldPresented, placement: .toolbar, prompt: "Search...")
+        .sheet(isPresented: $showReferenceWorkspace) { ReferenceWorkspaceView() }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Reference → Footage", systemImage: "film.stack") { showReferenceWorkspace = true }
+            }
             if appState.detailItem != nil {
                 ToolbarItem(placement: .navigation) {
                     Button {
