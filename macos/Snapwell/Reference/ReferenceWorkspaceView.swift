@@ -6,7 +6,7 @@ struct ReferenceWorkspaceView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \MediaItem.createdAt, order: .reverse) private var items: [MediaItem]
-    @State private var service = ReferenceService()
+    @State private var service = ReferenceService.shared
     @State private var referenceID = ""
     @State private var configure = false
     @State private var operation: Task<Void, Never>?
@@ -20,15 +20,16 @@ struct ReferenceWorkspaceView: View {
             header.disabled(service.busy)
             Divider()
             HStack(alignment: .top, spacing: 0) {
-                referenceColumn.frame(width: 265).disabled(service.busy)
+                referenceColumn.frame(width: 265).disabled(service.busy || !service.writable)
                 Divider()
-                ScrollView { attributeColumn.padding(24).id(service.activeID + referenceID) }.frame(width: 375).disabled(service.busy)
+                ScrollView { attributeColumn.padding(24).id(service.activeID + referenceID) }.frame(width: 375).disabled(service.busy || !service.writable)
                 Divider()
-                ScrollView { candidateColumn.padding(24) }.frame(maxWidth: .infinity).disabled(service.busy)
+                ScrollView { candidateColumn.padding(24) }.frame(maxWidth: .infinity).disabled(service.busy || !service.writable)
             }
             Divider()
             HStack {
-                if service.busy { ProgressView().controlSize(.small); Button("Cancel") { operation?.cancel() } }
+                if service.busy { ProgressView().controlSize(.small); Button("Cancel") { operation?.cancel() }; Text(service.progress).font(.caption) }
+                if !service.writable, service.recoveryAvailable { Button("Restore workspace backup") { service.restoreBackup() } }
                 Text(service.message.isEmpty ? "1  Collect references    →    2  Describe the look    →    3  Choose usable footage" : service.message)
                     .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                 Spacer()
@@ -43,11 +44,15 @@ struct ReferenceWorkspaceView: View {
         .onChange(of: service.briefs) { service.persist() }
         .onChange(of: service.connection) {
             for i in service.briefs.indices { for j in service.briefs[i].references.indices {
-                service.briefs[i].references[j].candidates = []; service.briefs[i].references[j].selectedIDs = []; service.briefs[i].references[j].searchOrigin = nil
+                service.briefs[i].references[j].candidates = []; service.briefs[i].references[j].searchOrigin = nil
             } }
         }
+        .onChange(of: service.model) { service.persist() }
+        .onChange(of: service.provider) { service.persist() }
+        .onChange(of: service.endpoint) { service.connectionStatus = "Not tested" }
+        .onChange(of: service.visualRanking) { service.persist() }
         .onChange(of: service.activeID) { referenceID = service.briefs[briefIndex].references.first?.mediaID ?? "" }
-        .task { referenceID = service.briefs[briefIndex].references.first?.mediaID ?? "" }
+        .task { service.loadCredential(); referenceID = service.briefs[briefIndex].references.first?.mediaID ?? "" }
         .onDisappear { operation?.cancel() }
     }
     private var header: some View {
@@ -60,7 +65,7 @@ struct ReferenceWorkspaceView: View {
                 Text("From inspiration to footage you already own").font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(service.connection == "demo" ? "LOCAL DEMO · synthetic archive" : "MEDIA NEXUS · connection configured")
+            Text(service.connection == "demo" ? "LOCAL DEMO · synthetic archive" : "MEDIA NEXUS · " + (service.connectionStatus.hasPrefix("Connected") ? "connected" : "connection not tested"))
                 .font(.caption.weight(.semibold)).padding(9).background(.white.opacity(0.08), in: Capsule())
             Button("Connection & analysis") { configure = true }
             Button("Export selects (\(selectedCount))") { exportPackage() }.disabled(selectedCount == 0)
@@ -89,6 +94,17 @@ struct ReferenceWorkspaceView: View {
                                     Text(item.id.prefix(8)).font(.caption.monospaced()).foregroundStyle(.secondary)
                                 }.padding(8).background(referenceID == item.id ? Color.accentColor.opacity(0.18) : .white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
                             }.buttonStyle(.plain)
+                            .contextMenu { Button("Remove from brief") { service.removeReference(item.id); if referenceID == item.id { referenceID = "" } } }
+                        } else {
+                            VStack(alignment: .leading) {
+                                Text("Missing reference · \(entry.mediaID.prefix(8))").font(.caption).foregroundStyle(.orange)
+                                Button("Remove missing reference") { service.removeReference(entry.mediaID); if referenceID == entry.mediaID { referenceID = "" } }
+                            }
+                        }
+                    }
+                    if let removed = service.briefs[briefIndex].removedReferences, !removed.isEmpty {
+                        DisclosureGroup("Removed references (\(removed.count))") {
+                            ForEach(removed, id: \.mediaID) { entry in Button("Restore \(entry.mediaID.prefix(8))") { service.restoreReference(entry.mediaID); referenceID = entry.mediaID } }
                         }
                     }
                     Divider()
@@ -119,18 +135,18 @@ struct ReferenceWorkspaceView: View {
                             Text(attribute.id.capitalized + (attribute.interpretation ? " · subjective" : " · observation")).font(.callout.weight(.medium))
                         }
                         TextField(attribute.id == "camera movement" ? "Unknown unless observed in video" : "Enter or correct attribute", text: $service.briefs[briefIndex].references[j].attributes[k].value, axis: .vertical)
-                            .textFieldStyle(.roundedBorder).lineLimit(1...2)
+                            .textFieldStyle(.roundedBorder).lineLimit(1...2).accessibilityLabel(attribute.id.capitalized + " value")
                     }
                 }
                 .onChange(of: service.briefs[briefIndex].references[j].attributes) {
                     service.briefs[briefIndex].references[j].candidates = []
-                    service.briefs[briefIndex].references[j].selectedIDs = []
+                    // Existing selections are retained as evidence snapshots.
                     service.briefs[briefIndex].references[j].searchOrigin = nil
                 }
-                Button("Find archive footage →") { operation = Task { await service.search(referenceID: referenceID) } }.buttonStyle(.borderedProminent)
-                    .disabled(ReferenceMatching.tokens(service.briefs[briefIndex].references[j].attributes).isEmpty)
+                Button("Find archive footage →") { operation = Task { await service.search(referenceID: referenceID, item: item) } }.buttonStyle(.borderedProminent)
+                    .disabled(ReferenceMatching.tokens(service.briefs[briefIndex].references[j].attributes).isEmpty && !service.visualRanking)
                 if service.connection != "demo" {
-                    Text("Catalog AND search · first six terms: " + ReferenceMatching.tokens(service.briefs[briefIndex].references[j].attributes).prefix(6).joined(separator: ", ")).font(.caption2).foregroundStyle(.secondary)
+                    Text("Semantic Archive search followed by local visual comparison of up to 12 managed previews. Results cover a bounded candidate pool.").font(.caption2).foregroundStyle(.secondary)
                 }
             } else { ContentUnavailableView("Choose a reference", systemImage: "photo.on.rectangle", description: Text("Import media or add an item from your existing library.")) }
         }
@@ -142,26 +158,39 @@ struct ReferenceWorkspaceView: View {
             if let j = entryIndex {
                 let entry = service.briefs[briefIndex].references[j]
                 if let origin = entry.searchOrigin { Text(origin).font(.caption.weight(.medium)).foregroundStyle(.orange) }
+                if let coverage = entry.searchCoverage { Text(coverage).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
                 if entry.candidates.isEmpty {
                     ContentUnavailableView(entry.searchOrigin == nil ? "Ready when you are" : "No catalog matches", systemImage: "film.stack", description: Text("Choose the attributes that matter, then find archive footage. Try fewer words if the archive has no matches."))
                 }
                 ForEach(entry.candidates) { candidate in
                     VStack(alignment: .leading, spacing: 10) {
-                        CandidateThumbnail(candidate: candidate, endpoint: service.endpoint, token: service.token).frame(height: 150).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
+                        CandidateThumbnail(candidate: candidate, endpoint: service.endpoint, token: service.token, cached: service.previewData[candidate.id]).frame(height: 150).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
                         HStack {
                             Text(candidate.name).font(.headline)
                             Spacer()
                             Button(entry.selectedIDs.contains(candidate.id) ? "Selected ✓" : "Select") {
-                                if entry.selectedIDs.contains(candidate.id) { service.briefs[briefIndex].references[j].selectedIDs.remove(candidate.id) }
-                                else { service.briefs[briefIndex].references[j].selectedIDs.insert(candidate.id) }
+                                service.toggleSelection(candidate, referenceID: referenceID)
                             }.buttonStyle(.bordered)
+                            .accessibilityIdentifier("select-" + candidate.id)
+                            .accessibilityLabel((entry.selectedIDs.contains(candidate.id) ? "Remove select " : "Select ") + candidate.name + " " + candidate.id)
                         }
-                        Text("\(candidate.demo ? "DEMO" : "MEDIA NEXUS") · \(candidate.id)").font(.caption.monospaced()).foregroundStyle(.secondary)
+                        Text("\(candidate.demo ? "DEMO" : "MEDIA NEXUS") · \(candidate.assetID)").font(.caption.monospaced()).foregroundStyle(.secondary)
                         Text(candidate.source).font(.caption).textSelection(.enabled)
                         Text(candidate.timecode ?? "Timecodes not supplied by archive").font(.caption.monospaced()).foregroundStyle(.secondary)
+                        if candidate.startSeconds != nil { Text("Asset preview; the range comes from indexed shot evidence.").font(.caption).foregroundStyle(.secondary) }
+                        if let availability = candidate.availability { Text(availability).font(.caption) }
+                        if let coverage = candidate.coverage { DisclosureGroup("Coverage and freshness") { Text(coverage).font(.caption).textSelection(.enabled) } }
+                        if !candidate.demo { Button("Open in Media Nexus", systemImage: "arrow.up.right") { openInArchive(candidate) } }
                         ForEach(candidate.evidence, id: \.self) { Text("• " + $0).font(.callout).textSelection(.enabled) }
-                        if !candidate.demo { Text("Metadata match; visual equivalence and footage availability need producer review.").font(.caption).foregroundStyle(.secondary) }
+                        if !candidate.demo { Text("Inspect the archive evidence, preview and source availability before editing.").font(.caption).foregroundStyle(.secondary) }
                     }.padding(14).background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            if let j = entryIndex, let saved = service.briefs[briefIndex].references[j].selections, !saved.isEmpty {
+                Divider()
+                Text("Saved selects · retained across searches").font(.headline)
+                ForEach(saved) { candidate in
+                    HStack { Text(candidate.name).font(.callout); Spacer(); Button("Remove") { service.toggleSelection(candidate, referenceID: referenceID) } }
                 }
             }
             Text("Export includes the references, corrected attributes, selected asset IDs and match evidence. Archive originals stay in Media Nexus.").font(.caption).foregroundStyle(.secondary)
@@ -176,19 +205,34 @@ struct ReferenceWorkspaceView: View {
             }.pickerStyle(.segmented)
             if service.connection == "real" {
                 TextField("https://your-server/api/mcp/v1/rpc", text: $service.endpoint).textFieldStyle(.roundedBorder)
-                SecureField("Existing read-scoped token (memory only)", text: $service.token).textFieldStyle(.roundedBorder)
+                SecureField("Existing read-scoped token", text: $service.token).textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("Load from Keychain") { service.loadCredential() }
+                    Button("Save in Keychain") { service.saveCredential() }.disabled(service.token.isEmpty)
+                    Button("Forget credential") { service.forgetCredential() }
+                }
+                Button("Test connection") { operation = Task { await service.testConnection() } }.disabled(service.busy)
+                Text(service.connectionStatus).font(.caption).textSelection(.enabled)
                 Text("Search sends chosen attribute words to your server. No reference media is uploaded to Media Nexus. Connection failures never fall back to demo.").font(.caption).foregroundStyle(.secondary)
             }
+            Toggle("Compare candidate previews on this Mac", isOn: $service.visualRanking)
+            Text("Selected attributes guide the archive query. Overall preview similarity ranks the returned candidates; it does not prove a subject, shot range, or camera movement.").font(.caption).foregroundStyle(.secondary)
             Divider()
             Picker("Analysis provider", selection: $service.provider) {
                 ForEach(AIProvider.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }.onChange(of: service.provider) { service.model = service.provider.defaultModel }
             TextField("Vision model", text: $service.model).textFieldStyle(.roundedBorder)
+            if service.provider == .ollama { Button("Use an installed vision model") { operation = Task { await service.discoverModels() } } }
             Text(service.provider == .ollama ? "Ollama runs at localhost:11434. Install a vision model first. Manual observations work without a model." : "Clicking Analyze sends the reference image, or sampled video frames, directly to this cloud provider. It may incur charges. Add your own provider key in the app’s Settings (⌘,); credentials are never exported.")
                 .font(.callout).foregroundStyle(.secondary)
-            Text("Analysis is cached by media content, provider, model and prompt. Briefs and selections are saved locally.").font(.caption)
-            HStack { Spacer(); Button("Done") { configure = false }.keyboardShortcut(.defaultAction) }
+            Text("Analysis is cached by media content, provider, model and prompt. Briefs, provider settings and selections are saved locally with recoverable backups.").font(.caption)
+            HStack { if service.busy { ProgressView(); Button("Cancel") { operation?.cancel() } }; Spacer(); Button("Done") { service.persist(); configure = false }.keyboardShortcut(.defaultAction) }
         }.padding(26).frame(width: 600)
+    }
+    private func openInArchive(_ candidate: ArchiveCandidate) {
+        guard let endpoint = try? MediaNexusAdapter.validateEndpoint(candidate.connectionOrigin ?? service.endpoint), var origin = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return }
+        origin.path = ""; origin.query = nil; origin.fragment = nil
+        if let base = origin.url { NSWorkspace.shared.open(base.appendingPathComponent("library").appendingPathComponent("assets").appendingPathComponent(candidate.assetID)) }
     }
     private func importReferences() {
         let panel = NSOpenPanel(); panel.allowedContentTypes = SupportedMedia.importableContentTypes; panel.allowsMultipleSelection = true
@@ -200,10 +244,12 @@ struct ReferenceWorkspaceView: View {
         ingest([url])
     }
     private func ingest(_ urls: [URL]) {
-        Task { @MainActor in
-            service.busy = true; defer { service.busy = false }
+        operation = Task { @MainActor in
+            service.busy = true; defer { service.busy = false; service.progress = "" }
             var succeeded = 0
-            for url in urls {
+            for (index, url) in urls.enumerated() {
+                if Task.isCancelled { service.message = "Import cancelled; completed references were retained."; break }
+                service.progress = "Importing reference \(index + 1) of \(urls.count)…"
                 let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
                 do {
                     // Reuse upstream import and sidecar handling, deliberately bypassing automatic AI upload.
@@ -220,9 +266,13 @@ struct ReferenceWorkspaceView: View {
     private func exportPackage() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "Export here"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
-        do { let target = try service.export(to: url, items: items); service.message = "Exported \(target.lastPathComponent)"; NSWorkspace.shared.activateFileViewerSelecting([target]) }
-        catch { service.message = "Export failed: \(error.localizedDescription)" }
+        operation = Task { @MainActor in
+            let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+            service.busy = true; service.progress = "Writing reference media and checksums…"; defer { service.busy = false; service.progress = "" }
+            do { let target = try await service.exportAsync(to: url, items: items); service.message = "Exported \(target.lastPathComponent)"; NSWorkspace.shared.activateFileViewerSelecting([target]) }
+            catch is CancellationError { service.message = "Export cancelled. No partial package was published." }
+            catch { service.message = "Export failed: \(error.localizedDescription)" }
+        }
     }
 }
 private struct ReferenceThumbnail: View {
@@ -239,17 +289,18 @@ private struct CandidateThumbnail: View {
     let candidate: ArchiveCandidate
     let endpoint: String
     let token: String
+    let cached: Data?
     @State private var image: NSImage?
     var body: some View {
         if candidate.demo, let thumbnail = candidate.thumbnail, let url = Bundle.main.url(forResource: thumbnail, withExtension: "png") {
             ReferenceThumbnail(url: url)
         } else {
             Group {
-                if let image { Image(nsImage: image).resizable().scaledToFill() }
+                if let image = cached.flatMap(NSImage.init(data:)) ?? image { Image(nsImage: image).resizable().scaledToFill() }
                 else { ZStack { Color.white.opacity(0.05); Label("Managed thumbnail unavailable", systemImage: "film").font(.caption) } }
             }.task(id: candidate.id + endpoint) {
-                guard let url = URL(string: endpoint), url.scheme == "https" || ["localhost", "127.0.0.1", "::1"].contains(url.host), !token.isEmpty else { return }
-                if let data = try? await MediaNexusAdapter(endpoint: url, token: token).visual(assetID: candidate.id) { image = NSImage(data: data) }
+                guard cached == nil, let url = try? MediaNexusAdapter.validateEndpoint(candidate.connectionOrigin ?? endpoint), !token.isEmpty, candidate.connectionOrigin == nil || candidate.connectionOrigin == endpoint else { return }
+                if let data = try? await MediaNexusAdapter(endpoint: url, token: token).visual(assetID: candidate.assetID) { image = NSImage(data: data) }
             }
         }
     }

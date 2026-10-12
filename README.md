@@ -2,7 +2,7 @@
 
 A working native Mac derivative of Snapwell connecting creative references to an owned-footage archive. Collect references in a brief, correct visual attributes, search a visibly labeled demo or Media Nexus adapter, and export reference-and-selects packages.
 
-[Local setup and walkthrough](docs/REFERENCE_SETUP.md) · [Archive adapter](docs/MEDIA_NEXUS_ADAPTER.md) · [Verification](docs/VERIFICATION.md) · [Licensing and corresponding source](docs/LICENSING.md)
+[Local setup and walkthrough](docs/REFERENCE_SETUP.md) · [Production release](docs/PRODUCTION_RELEASE.md) · [Archive adapter](docs/MEDIA_NEXUS_ADAPTER.md) · [Verification](docs/VERIFICATION.md) · [Licensing and corresponding source](docs/LICENSING.md)
 
 ```sh
 ./scripts/run-reference.sh

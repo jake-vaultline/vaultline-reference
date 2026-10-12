@@ -46,8 +46,23 @@ Screenshots are local and gitignored per the upstream repository instructions:
 
 Raw captures remain beside the cropped captures. Crops remove only unused screenshot canvas; no UI contents were altered.
 
-## Limits and next connection step
+## Prototype limits (superseded for Mac production branch)
 
 The **local demo vertical slice is qualified**. The real adapter reuses the inspected Core MCP contract, including managed previews, and passes transport/response tests. A live app-scoped read token has not been supplied, so live search, live thumbnail rights and production metadata quality have **not** been qualified. Enter an existing token and target URL in Connection & analysis and repeat the same journey to qualify the real archive. No reference media is sent to Media Nexus; only chosen search words are sent.
 
 Real search is catalog/tag/transcript AND matching, capped at six words, not a claim of semantic visual similarity. Search_assets supplies no shot ranges: the UI says “Timecodes not supplied by archive”. Collection writes are not implemented; export fulfills the save-or-export path. Archive original footage is not copied into the package. Optional cloud providers have unit/contract coverage from upstream, but were not called live. iOS and the upstream website are unchanged and were not qualified for Reference. No signed/notarized artifact, client deployment or public binary distribution was performed; corresponding-source planning is in LICENSING.md.
+
+
+## Production hardening qualification — VLP-2172
+
+Branch `codex/vlp-2172-reference-production`, based on prototype commit `91df939ef75b2569b2ba02b5d55624069493ae4d`. Full native suite: **342 tests in 30 suites passed**, TEST SUCCEEDED. Command: `xcodebuild test -project macos/Snapwell.xcodeproj -scheme Snapwell -destination 'platform=macOS' -derivedDataPath /private/tmp/reference-production-build CODE_SIGNING_ALLOWED=NO`. Evidence: `/private/tmp/reference-production-tests.log`; xcresult `Test-Snapwell-2026.10.12_02-10-13--0700.xcresult`.
+
+Added coverage verifies workspace migration, backups, damaged-file preservation, conflicting-writer rejection, selection snapshots, removed-reference restore, provider credential origin reset, cancellable streamed imports/exports, partial-output cleanup, real semantic search contract, response freshness/coverage, supplied ranges and Vision distances. Tests retain upstream import, model, sidecar and browsing coverage. No paid cloud calls occurred.
+
+The installed Sandbox was accessed read-only via its existing approved MCP stdio connection and an ephemeral loopback JSON-RPC bridge (only capabilities, query/rank, managed previews and asset details). The native app imported an actual owned archive preview; an installed local vision model described the visible subject/setting/palette. The operator corrected the setting, selected only that attribute, searched, viewed 30 real candidates, and compared the first 12 previews on-device. The known matching source ranked first, with online-volume and ready-proxy facts returned by asset_details. No range was supplied for that item, and the UI explicitly said so.
+
+Selected that real candidate in the native UI and exported using the native folder picker. Package `/private/tmp/reference-production-export/Vaultline-Reference-1741E5C1-640E-42D0-ACDA-135459651532` contains one reference and one real selection. Every recorded reference checksum matches its exported bytes. Search refresh retained the saved selection. Private reference/catalog evidence stays local and is absent from this repository and Console. Screenshot `.screenshots/production-live-archive.png` captures this native experience; it is private, gitignored, and preserves the complete app capture.
+
+Bounded visual retrieval: 12 transformed references against 12 older real archive previews (10 unique previews, two duplicate groups), source top-1 10/12, top-3 12/12, approximately 0.19 seconds for 144 comparisons. This is known-source preview retrieval, not blind creative relevance or archive-wide similarity qualification. Detailed private inputs remain outside Git.
+
+Signed/notarized packaging is reproducible via scripts/package-reference.sh. Per-build signing/notarization, installation and runtime readbacks are recorded outside Git in the artifact directory keyed by the exact commit, so source identity remains reproducible. See PRODUCTION_RELEASE.md for supported scope and the customer's remaining configured-connection and creative-review gates.

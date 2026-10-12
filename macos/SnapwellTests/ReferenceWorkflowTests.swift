@@ -28,9 +28,9 @@ struct ReferenceWorkflowTests {
         #expect(result[0].evidence == ["tagged ‘coast’"])
         #expect(result[0].thumbnail == "/thumb/a")
     }
-    @Test("Real adapter sends the exact bounded MCP search request")
+    @Test("Real adapter sends the semantic MCP request without silently dropping chosen words")
     func realTransportContract() async throws {
-        ReferenceMockProtocol.response = Data(#"{"jsonrpc":"2.0","id":"1","result":{"isError":false,"structuredContent":{"authority":"media-nexus","data":{"items":[],"evidence":[]}}}}"#.utf8)
+        ReferenceMockProtocol.response = Data(#"{"jsonrpc":"2.0","id":"1","result":{"isError":false,"structuredContent":{"authority":"media-nexus","contract":"mediaNexus.intelligence/1","data":{"items":[],"evidence":[]}}}}"#.utf8)
         ReferenceMockProtocol.capture = { request in
             #expect(request.url?.path == "/api/mcp/v1/rpc")
             #expect(request.httpMethod == "POST")
@@ -48,10 +48,11 @@ struct ReferenceWorkflowTests {
             let body = try #require(data)
             let rpc = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
             #expect(rpc["method"] as? String == "tools/call")
-            let params = try #require(rpc["params"] as? [String: Any]); #expect(params["name"] as? String == "search_assets")
-            let args = try #require(params["arguments"] as? [String: String])
-            #expect(args["mediaType"] == "video")
-            #expect(args["terms"]?.split(separator: " ").count == 6)
+            let params = try #require(rpc["params"] as? [String: Any]); #expect(params["name"] as? String == "query_archive")
+            let args = try #require(params["arguments"] as? [String: Any])
+            #expect(args["mediaType"] as? String == "video")
+            #expect(args["query"] as? String == "subject: beach coast ocean warm teal orange wide")
+            #expect(args["limit"] as? Int == 30)
         }
         defer { ReferenceMockProtocol.capture = nil }
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [ReferenceMockProtocol.self]
@@ -134,7 +135,9 @@ struct ReferenceWorkflowTests {
         let service = ReferenceService(root: workspace, storage: storage, ai: ai)
         let item = MediaItem(id: "ref", mediaType: .image, filename: "reference.png", width: 960, height: 540)
         service.addReference(item.id)
+        service.briefs[0].references[0].attributes[0].matters = false
         await service.analyze(item: item)
+        #expect(!service.briefs[0].references[0].attributes[0].matters)
         #expect(service.briefs[0].references[0].attributes[0].value == "coast")
         await service.analyze(item: item)
         #expect(ReferenceMockProtocol.count == 1)
@@ -186,6 +189,8 @@ struct ReferenceWorkflowTests {
         service.connection = "real"; service.endpoint = "http://example.com/api/mcp/v1/rpc"; service.token = "synthetic-test-token"
         #expect(throws: (any Error).self) { try service.adapter() }
         service.endpoint = "http://127.0.0.1:8123/api/mcp/v1/rpc"
+        #expect(service.token.isEmpty)
+        service.token = "synthetic-test-token"
         #expect(try service.adapter().label.contains("MEDIA NEXUS"))
     }
 }

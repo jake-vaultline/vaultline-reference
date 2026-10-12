@@ -47,6 +47,12 @@ targets:
       - path: Snapwell
         excludes:
           - "**/.DS_Store"
+      - path: ../COPYING
+        buildPhase: resources
+      - path: ../LICENSE
+        buildPhase: resources
+      - path: ../docs/LICENSING.md
+        buildPhase: resources
       - path: ../Shared
         excludes:
           - "**/.DS_Store"
@@ -60,9 +66,9 @@ targets:
         LSApplicationCategoryType: public.app-category.photography
         NSHumanReadableCopyright: "Copyright © 2024–2026 Snapwell; modifications © 2026 Vaultline. GPL-3.0-or-later."
         ITSAppUsesNonExemptEncryption: false
-        NSPhotoLibraryUsageDescription: "Snapwell accesses your photo library to import and organize your photos and videos. For example, you can select images from your library to add them to Snapwell for AI-powered analysis and categorization."
-        NSAppleMusicUsageDescription: "Snapwell accesses your media library to browse and import photos and videos you have saved. For example, you can import images from your media library to organize them into visual collections."
-        NSLocalNetworkUsageDescription: "Snapwell connects to Ollama running on this Mac to analyze your media locally."
+        NSPhotoLibraryUsageDescription: "Vaultline Reference accesses your photo library to import and organize your photos and videos. For example, you can select images from your library to add them to Vaultline Reference for AI-powered analysis and categorization."
+        NSAppleMusicUsageDescription: "Vaultline Reference accesses your media library to browse and import photos and videos you have saved. For example, you can import images from your media library to organize them into visual collections."
+        NSLocalNetworkUsageDescription: "Vaultline Reference connects to your Media Nexus archive and to Ollama on this Mac for local analysis."
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
