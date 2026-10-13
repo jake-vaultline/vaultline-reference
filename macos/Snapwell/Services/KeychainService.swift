@@ -22,31 +22,20 @@ enum KeychainService {
     static func set(key: String, forService service: String) throws {
         migrateIfNeeded()
 
-        lock.lock()
-        if cache == nil { cache = [:] }
-        cache?[service] = key
-        lock.unlock()
-
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: service
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: service,
-            kSecValueData as String: Data(key.utf8),
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        var query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: serviceName, kSecAttrAccount as String: service]
+        let attributes: [String: Any] = [kSecValueData as String: Data(key.utf8), kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked]
+        var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status == errSecItemNotFound { query.merge(attributes) { _, value in value }; status = SecItemAdd(query as CFDictionary, nil) }
         if status != errSecSuccess {
             logger.error("Keychain write failed for \(service, privacy: .public): \(status)")
+            #if DEBUG
             fallbackSet(key: key, forService: service)
+            #else
+            throw NSError(domain: "VaultlineReference.Keychain", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "The credential could not be saved in Keychain. No plaintext fallback was written."])
+            #endif
         }
+        lock.lock(); if cache == nil { cache = [:] }; cache?[service] = key; lock.unlock()
     }
 
     static func get(service: String) throws -> String? {
@@ -81,14 +70,15 @@ enum KeychainService {
             logger.error("Keychain read failed for \(service, privacy: .public): \(status)")
         }
 
+        #if DEBUG
         return fallbackGet(service: service)
+        #else
+        if status != errSecItemNotFound { throw NSError(domain: "VaultlineReference.Keychain", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Keychain access is unavailable."]) }
+        return nil
+        #endif
     }
 
     static func delete(service: String) throws {
-        lock.lock()
-        cache?.removeValue(forKey: service)
-        lock.unlock()
-
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -98,7 +88,9 @@ enum KeychainService {
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
             logger.error("Keychain delete failed for \(service, privacy: .public): \(status)")
+            throw NSError(domain: "VaultlineReference.Keychain", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "The credential could not be removed from Keychain."])
         }
+        lock.lock(); cache?.removeValue(forKey: service); lock.unlock()
 
         fallbackDelete(service: service)
     }
@@ -136,21 +128,15 @@ enum KeychainService {
                 kSecValueData as String: Data(key.utf8),
                 kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
             ]
-            SecItemDelete([
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: serviceName,
-                kSecAttrAccount as String: service
-            ] as CFDictionary)
             let status = SecItemAdd(addQuery as CFDictionary, nil)
-            if status != errSecSuccess {
+            if status != errSecSuccess && status != errSecDuplicateItem {
                 logger.error("Migration failed for \(service, privacy: .public): \(status)")
                 allSucceeded = false
             }
 
-            lock.lock()
-            if cache == nil { cache = [:] }
-            cache?[service] = key
-            lock.unlock()
+            if status == errSecSuccess {
+                lock.lock(); if cache == nil { cache = [:] }; cache?[service] = key; lock.unlock()
+            }
         }
 
         if allSucceeded {

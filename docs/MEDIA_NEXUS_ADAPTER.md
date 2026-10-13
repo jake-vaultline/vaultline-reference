@@ -1,18 +1,21 @@
 # Archive integration
 
-The archive boundary is `ArchiveAdapter`. `DemoArchiveAdapter` reads bundled `archive.json`: original synthetic images and a three-second, 24 fps static video. Those are a representative **test catalog**, never a team's own footage. Fields and explanations say fixture; IDs start with `demo-`. The video range is verified against its generated media. Images have no invented ranges.
+`ArchiveAdapter` separates Media Nexus from the bundled synthetic demo. Demo results use `demo-` identities and visibly say DEMO; errors in a real connection never substitute fixtures.
 
-`MediaNexusAdapter` reuses the existing Core MCP JSON-RPC endpoint, not a hypothetical search API:
+The real adapter uses the inspected Core contract: JSON-RPC 2.0 `tools/call` at POST `/api/mcp/v1/rpc`, with an existing read-scoped bearer token. Responses must have contract `mediaNexus.intelligence/1` and authority `media-nexus`.
 
-- POST `/api/mcp/v1/rpc`, bearer token, JSON-RPC 2.0 `tools/call`.
-- `search_assets` arguments `terms` (up to six space-separated AND terms) and `mediaType: video`.
-- Response `result.structuredContent`, authority `media-nexus`, `data.items` with `assetId`, `name`, `folder`, `matched`; `data.evidence` keyed by `id`.
-- Thumbnails use `get_asset_visual` with `assetId`, returned as a bounded MCP image block. Tokens are never sent to thumbnail URLs from catalog content. Missing preview rights/derivatives show “Managed thumbnail unavailable”.
+- `get_capabilities` verifies installation identity and available tools.
+- `query_archive` receives selected reference attributes, video media type and limit 30. It can return indexed asset, visual-shot or transcript evidence. Coverage and freshness remain visible; unavailable indexing is not reported as an empty successful search.
+- `rank_assets` supplies a bounded recent-video pool when visual comparison is requested without searchable attributes or when semantic results are absent.
+- `get_asset_visual` retrieves bounded managed previews by asset ID. The app never follows a catalog thumbnail URL with credentials.
+- `asset_details` supplies actual volume/proxy availability. Failure leaves availability unknown.
 
-Inspected Core `vaultline_mcp.py` TOOL_SCHEMAS, ITEM_FIELDS, SPECIAL_TOOL_SCHEMAS, envelope and RPC handler; `vaultline_tools.py` `_tool_search_assets`; `vaultline_server.py` route `/api/mcp/v1/rpc`. Search returns catalog/tag/transcript evidence, not shot ranges. Real candidate timecodes therefore say not supplied. Metadata matches do not prove visual similarity, online volume availability, or original-media retrieval. Future shot search can use the separately existing `query_archive` contract after qualification of its evidence and ranges.
+Up to 12 retrieved previews are compared to the reference locally with Apple Vision revision-2 feature prints. Lower distance means closer preview appearance, not a confidence probability or proof of equivalent footage. This is bounded candidate reranking, not an archive-wide visual index. It performs no paid model call. Aspect normalization uses scaleFill; the full-resolution reference remains unchanged.
 
-Choose “Media Nexus” in Connection & analysis, enter your exact MCP URL and an **existing read-scoped token**. HTTPS is required remotely; loopback HTTP works for local forwarding. The token lives only in memory for this workspace. This does not create credentials. A configured connection is labeled configured, never healthy until a search actually returns results. Errors do not substitute fixtures. Changing archive mode clears stale matches/selections.
+Asset identity is namespaced by installation; selection snapshots preserve the original evidence, connection origin, freshness, availability and any supplied numeric range. Ranges are **asset seconds**, not SMPTE timecode. Missing ranges say “Timecodes not supplied by archive”. An asset preview can differ from a matched shot. Explanations quote metadata/evidence and report visual distance separately; they do not infer missing contents or timestamps.
 
-This slice supports package export rather than archive mutations. The package contains imported reference media, corrected attributes, chosen asset IDs, evidence, source locations, provider attribution, and any supplied range. It does not copy archive originals, claim to have saved a Media Nexus collection, or invent a collection API.
+Configure the exact HTTPS MCP URL and an existing read-scoped token in Connection & analysis. HTTP is allowed only for loopback forwarding; redirects are rejected. Credentials can be explicitly saved in Keychain, never workspace JSON. Any endpoint change clears the in-memory credential. Test connection before searching. No credential is created by this application.
 
-Live end-to-end qualification remains dependent on an existing app connection token and authorized target; the development environment’s connector is not a transferable app credential. Local tests exercise the exact response contract and fail-closed behavior. Real archive fixtures are never embedded in the fork.
+Live native search, preview retrieval and availability were exercised against the installed Sandbox through its existing approved read-only stdio connector, using an ephemeral local allowlisted JSON-RPC bridge. That bridge is qualification infrastructure, not a shipped gateway. Direct remote HTTPS/token deployment still requires the existing deployment's configured endpoint and token. No private catalog or customer media is included in this repository.
+
+The supported handoff is export: original imported references, corrected attributes, selected IDs/evidence/ranges and checksums. Archive originals are not copied; recipients resolve the IDs in their authorized Media Nexus installation. Collection writes are not implemented because no qualified collection-write interface was available.

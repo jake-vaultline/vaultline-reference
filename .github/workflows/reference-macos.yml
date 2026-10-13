@@ -1,0 +1,27 @@
+name: Reference macOS
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/*reference*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reference-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-tests:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Native toolchain
+        run: |
+          xcodebuild -version
+          if ! command -v xcodegen >/dev/null; then brew install xcodegen; fi
+      - name: Generate and test
+        run: |
+          cd macos
+          xcodegen generate
+          scripts/post-xcodegen.sh
+          xcodebuild test -project Snapwell.xcodeproj -scheme Snapwell -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/reference-tests" CODE_SIGNING_ALLOWED=NO

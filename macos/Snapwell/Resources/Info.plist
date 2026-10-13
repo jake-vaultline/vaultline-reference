@@ -30,12 +30,12 @@
 		<true/>
 	</dict>
 	<key>NSAppleMusicUsageDescription</key>
-	<string>Snapwell accesses your media library to browse and import photos and videos you have saved. For example, you can import images from your media library to organize them into visual collections.</string>
+	<string>Vaultline Reference accesses your media library to browse and import photos and videos you have saved. For example, you can import images from your media library to organize them into visual collections.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2024–2026 Snapwell; modifications © 2026 Vaultline. GPL-3.0-or-later.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Snapwell connects to Ollama running on this Mac to analyze your media locally.</string>
+	<string>Vaultline Reference connects to your Media Nexus archive and to Ollama on this Mac for local analysis.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Snapwell accesses your photo library to import and organize your photos and videos. For example, you can select images from your library to add them to Snapwell for AI-powered analysis and categorization.</string>
+	<string>Vaultline Reference accesses your photo library to import and organize your photos and videos. For example, you can select images from your library to add them to Vaultline Reference for AI-powered analysis and categorization.</string>
 </dict>
 </plist>
