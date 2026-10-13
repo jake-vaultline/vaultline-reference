@@ -152,7 +152,7 @@ enum DataCleanupService {
     @MainActor
     static func deleteCorruptedStore() -> Bool {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let snapwellDir = appSupport.appendingPathComponent("Snapwell", isDirectory: true)
+        let snapwellDir = appSupport.appendingPathComponent("VaultlineReference", isDirectory: true)
         let storeURL = snapwellDir.appendingPathComponent("default.store")
         let fm = FileManager.default
 

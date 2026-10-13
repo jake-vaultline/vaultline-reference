@@ -1,3 +1,19 @@
+# Vaultline Reference
+
+A working native Mac derivative of Snapwell connecting creative references to an owned-footage archive. Collect references in a brief, correct visual attributes, search a visibly labeled demo or Media Nexus adapter, and export reference-and-selects packages.
+
+[Local setup and walkthrough](docs/REFERENCE_SETUP.md) · [Production release](docs/PRODUCTION_RELEASE.md) · [Archive adapter](docs/MEDIA_NEXUS_ADAPTER.md) · [Verification](docs/VERIFICATION.md) · [Licensing and corresponding source](docs/LICENSING.md)
+
+```sh
+./scripts/run-reference.sh
+```
+
+Open **Reference → Footage** in the library toolbar. Existing Snapwell import and browsing remain available. The credential-free default archive is synthetic demo data; a real connection requires an existing Media Nexus read-scoped token. Default analysis uses local Ollama, with optional explicitly selected cloud providers.
+
+Derived from [gustavscirulis/snapwell](https://github.com/gustavscirulis/snapwell), by Gustav Scirulis. Copyright © 2024–2026 SnapWell; modifications © 2026 Vaultline. GPL-3.0-or-later; original notices retained. No derivative App Store exception is granted. The unchanged upstream README follows for provenance; its product release and iCloud descriptions refer to upstream Snapwell, not this isolated Mac derivative.
+
+---
+
 # Snapwell — Your inspiration, organized by AI
 
 Collect anything, search by what you see. An open-source inspiration library for macOS and iOS.

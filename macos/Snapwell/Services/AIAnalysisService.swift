@@ -57,8 +57,10 @@ final class AIAnalysisService: Sendable {
 
     private let ollamaClient: OllamaClient
 
-    init(ollamaClient: OllamaClient = .shared) {
+    init(ollamaClient: OllamaClient = .shared, maximumTransientRetries: Int = 2, retryInvalidFormat: Bool = true) {
         self.ollamaClient = ollamaClient
+        self.maxRetries = maximumTransientRetries
+        self.retryInvalidFormat = retryInvalidFormat
     }
 
     private let systemPrompt = """
@@ -116,7 +118,8 @@ final class AIAnalysisService: Sendable {
 
     private let userText = "Analyze this image."
 
-    private let maxRetries = 2
+    private let maxRetries: Int
+    private let retryInvalidFormat: Bool
 
     func analyze(image: NSImage, provider: AIProvider, model: String, guidance: String? = nil, spaceContext: String? = nil) async throws -> AnalysisResult {
         let apiKey: String
@@ -173,7 +176,7 @@ final class AIAnalysisService: Sendable {
             } catch {
                 if let analysisError = error as? AnalysisError,
                    case .invalidAnalysisFormat = analysisError,
-                   formatRetryCount < 1 {
+                   retryInvalidFormat, formatRetryCount < 1 {
                     formatRetryCount += 1
                     print("[Analysis] Retrying malformed provider response")
                     continue

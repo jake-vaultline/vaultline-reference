@@ -141,7 +141,8 @@ final class ImportService {
         }
 
         // Copy file to media storage
-        _ = try storage.copyMedia(from: url, filename: filename)
+        _ = try await storage.copyMediaCancellable(from: url, filename: filename)
+        if Task.isCancelled { try? storage.deleteMedia(filename: filename); throw CancellationError() }
 
         // Generate thumbnail
         if isVideo {
@@ -152,11 +153,13 @@ final class ImportService {
                     width = Int(pixelSize.width)
                     height = Int(pixelSize.height)
                 }
-                _ = try? ThumbnailService.generateThumbnail(from: posterFrame, id: id)
+                _ = try? ThumbnailService.generateThumbnail(from: posterFrame, id: id, storage: storage)
             }
         } else {
-            _ = try? await ThumbnailService.generateThumbnail(from: storage.mediaURL(filename: filename), id: id)
+            _ = try? await ThumbnailService.generateThumbnail(from: storage.mediaURL(filename: filename), id: id, storage: storage)
         }
+
+        if Task.isCancelled { try? storage.deleteMedia(filename: filename); try? storage.deleteThumbnail(id: id); throw CancellationError() }
 
         // Create SwiftData model
         let item = MediaItem(id: id, mediaType: mediaType, filename: filename, width: width, height: height, duration: duration)

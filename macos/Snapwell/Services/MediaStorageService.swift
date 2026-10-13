@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Darwin
 
 final class MediaStorageService: Sendable {
     enum TrashError: LocalizedError {
@@ -39,20 +40,14 @@ final class MediaStorageService: Sendable {
 
         let fm = FileManager.default
         for dir in [baseURL, mediaDir, metadataDir, thumbnailDir, trashMediaDir, trashMetadataDir, trashThumbnailDir] {
-            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         }
     }
 
     private convenience init() {
-        // Try to resolve the iCloud container; fall back to Application Support
         let fm = FileManager.default
-        if let containerURL = fm.url(forUbiquityContainerIdentifier: "iCloud.co.SnapWell") {
-            let docsURL = containerURL.appendingPathComponent("Documents", isDirectory: true)
-            self.init(baseURL: docsURL, isUsingiCloud: true)
-        } else {
-            let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            self.init(baseURL: appSupport.appendingPathComponent("Snapwell", isDirectory: true))
-        }
+        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        self.init(baseURL: appSupport.appendingPathComponent("VaultlineReference", isDirectory: true))
     }
 
     func saveMedia(data: Data, filename: String) throws -> URL {
@@ -69,6 +64,28 @@ final class MediaStorageService: Sendable {
         }
         try fm.copyItem(at: sourceURL, to: destURL)
         return destURL
+    }
+
+    /// Stream into an ignored staging file off the UI actor; publish only the complete copy.
+    func copyMediaCancellable(from source: URL, filename: String) async throws -> URL {
+        let directory = mediaDir
+        let task = Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default, destination = directory.appendingPathComponent(filename)
+            guard URL(fileURLWithPath: filename).lastPathComponent == filename, !fm.fileExists(atPath: destination.path) else {
+                throw CocoaError(.fileWriteFileExists)
+            }
+            let staging = directory.appendingPathComponent(".\(UUID().uuidString).importing")
+            let descriptor = open(staging.path, O_CREAT | O_EXCL | O_WRONLY, 0o600)
+            guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+            let output = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+            do {
+                let input = try FileHandle(forReadingFrom: source); defer { try? input.close(); try? output.close() }
+                while let chunk = try input.read(upToCount: 1024 * 1024), !chunk.isEmpty { try Task.checkCancellation(); try output.write(contentsOf: chunk) }
+                try output.synchronize(); try Task.checkCancellation()
+                try fm.moveItem(at: staging, to: destination); return destination
+            } catch { try? output.close(); try? fm.removeItem(at: staging); throw error }
+        }
+        return try await withTaskCancellationHandler(operation: { try await task.value }, onCancel: { task.cancel() })
     }
 
     func saveThumbnail(data: Data, id: String) throws -> URL {

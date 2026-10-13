@@ -5,7 +5,7 @@ import SwiftData
 struct SnapwellApp: App {
     @AppStorage("appearanceMode") private var appearanceMode: String = AppearanceMode.dark.rawValue
     let container: ModelContainer
-    private static let multiSpaceStoreResetKey = "multiSpaceStoreReset_v1"
+    let startupIssue: String?
 
     private var appearanceColorScheme: ColorScheme? {
         (AppearanceMode(rawValue: appearanceMode) ?? .dark).colorScheme
@@ -15,49 +15,35 @@ struct SnapwellApp: App {
         NSWindow.allowsAutomaticWindowTabbing = false
 
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let snapwellDir = appSupport.appendingPathComponent("Snapwell", isDirectory: true)
+        let snapwellDir = appSupport.appendingPathComponent("VaultlineReference", isDirectory: true)
         try? FileManager.default.createDirectory(at: snapwellDir, withIntermediateDirectories: true)
         let storeURL = snapwellDir.appendingPathComponent("default.store")
-
-        if !UserDefaults.standard.bool(forKey: Self.multiSpaceStoreResetKey) {
-            Self.deleteStoreFiles(at: storeURL)
-            UserDefaults.standard.set(true, forKey: Self.multiSpaceStoreResetKey)
-        }
 
         do {
             let config = ModelConfiguration("Snapwell", url: storeURL)
             container = try ModelContainer(for: MediaItem.self, Space.self, AnalysisResult.self, configurations: config)
+            startupIssue = nil
         } catch {
-            // Store is corrupted — delete and recreate
-            print("[SnapwellApp] Store corrupted, recreating: \(error)")
-            _ = DataCleanupService.deleteCorruptedStore()
-            do {
-                let config = ModelConfiguration("Snapwell", url: storeURL)
-                container = try ModelContainer(for: MediaItem.self, Space.self, AnalysisResult.self, configurations: config)
-            } catch {
-                fatalError("Failed to create ModelContainer after recovery: \(error)")
-            }
-        }
-    }
-
-    private static func deleteStoreFiles(at storeURL: URL) {
-        let fm = FileManager.default
-        for suffix in ["", "-wal", "-shm"] {
-            let url = URL(fileURLWithPath: storeURL.path + suffix)
-            if fm.fileExists(atPath: url.path) {
-                try? fm.removeItem(at: url)
-            }
+            // Never delete an operator library to recover automatically.
+            startupIssue = error.localizedDescription
+            let config = ModelConfiguration("Recovery", isStoredInMemoryOnly: true)
+            container = try! ModelContainer(for: MediaItem.self, Space.self, AnalysisResult.self, configurations: config)
         }
     }
 
     var body: some Scene {
-        WindowGroup("Snapwell") {
-            ContentView()
-                .preferredColorScheme(appearanceColorScheme)
-                .task {
-                    KeySyncService.syncFromiCloud()
-                    KeySyncService.syncToiCloud()
-                }
+        WindowGroup("Vaultline Reference") {
+            Group {
+                if let startupIssue {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text("Your library needs recovery").font(.title)
+                        Text("The library database could not open. Its database, media and sidecars were preserved; no reset was performed.")
+                        Text(startupIssue).font(.caption).textSelection(.enabled)
+                        Button("Open preserved library folder") { NSWorkspace.shared.open(MediaStorageService.shared.baseURL) }
+                        Text("Keep a copy of this folder before restoring a backup or contacting support.").font(.callout)
+                    }.padding(36).frame(width: 680)
+                } else { ContentView() }
+            }.preferredColorScheme(appearanceColorScheme)
         }
         .modelContainer(container)
         .defaultSize(width: 1280, height: 800)
