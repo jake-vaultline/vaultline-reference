@@ -73,8 +73,8 @@ authorized access to resolve the archive IDs. Preserve reference attribution and
 license information separately when your media requires it; the app does not
 establish a reference's license from its contents.
 
-From inside the completed package, this read-only command verifies the reference
-checksums on macOS without additional software:
+If Python 3.9 or later is already available on your Mac, this optional read-only
+command verifies the reference checksums from inside the completed package:
 
 ```sh
 python3 - <<'PY'
