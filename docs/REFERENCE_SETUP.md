@@ -1,17 +1,21 @@
 # Vaultline Reference — local setup
 
-Requirements: macOS 15+, Xcode 26 (tested 26.6), XcodeGen on PATH. Mac build has no third-party Swift package dependencies. iOS remains the upstream companion, has not been rebranded/qualified, and does not implement Reference briefs; its DEBUG-only DialKit dependency remains unchanged. The marketing website remains upstream.
+Requirements: macOS 15+, Xcode 26 (tested 26.6), XcodeGen on PATH. Mac build has no third-party Swift package dependencies. iOS remains the upstream companion, has not been rebranded/qualified, and does not implement Reference briefs; its DEBUG-only DialKit dependency remains unchanged. The repository's `site/` directory remains the upstream Snapwell website. Vaultline's Reference product page is maintained separately in the existing Vaultline website repository.
 
 ```sh
 git clone https://github.com/jake-vaultline/vaultline-reference.git
 cd vaultline-reference
-git checkout codex/vlp-2172-reference-production
+git checkout main
 ./scripts/run-reference.sh
 ```
 
 The unsigned developer build is `/private/tmp/vaultline-reference-dev/Build/Products/Debug/Snapwell.app`, display name Vaultline Reference. The binary/module/scheme retain Snapwell to keep upstream tests and imports intact. Bundle ID `com.vaultline.reference`; developer-build data in `~/Library/Application Support/VaultlineReference`; signed sandbox data lives inside `~/Library/Containers/com.vaultline.reference/Data/Library/Application Support/`. Upstream Snapwell data and keys are separate; no iCloud sync is enabled in the derivative Mac build. Build without signing does not imply notarization or distributable installation readiness. `dev.sh` remains the upstream release helper, **not** an authorized derivative release path.
 
 Click **Reference → Footage** in the library toolbar. Name a brief, import PNG/JPEG/screenshot or video, or use **Try sample reference**. Add existing library items with the plus controls. For a credential-free walkthrough, type subject `coast`, lighting `warm`, and palette `orange teal`; check the attributes to include and click **Find archive footage**. Choose the warm coast result, **Select**, then **Export selects**, and choose an output folder. The resulting folder has the actual reference media, `manifest.json` with SHA-256 checksums, and `SELECTS.md`. Selections are snapshots and survive new searches. Cancelled imports/exports clean up their staging files. Removed references can be restored. Close/reopen the workspace to verify saved briefs and selections. Original library import, browse, spaces, search, playback and share remain accessible behind Done.
+
+For installation, archive setup, interrupted operations and package inspection, follow
+the [first-brief walkthrough](FIRST_BRIEF.md). A source build is a developer build;
+use the separately qualified signed candidate when testing distributable behavior.
 
 ## Analysis providers
 
